@@ -21,8 +21,7 @@ public class SensorLimelight3A extends LinearOpMode {
     {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
 
-        telemetry.setMsTransmissionInterval(11);
-
+        limelight.setPollRateHz(100);
         limelight.pipelineSwitch(0);
         limelight.start();
 

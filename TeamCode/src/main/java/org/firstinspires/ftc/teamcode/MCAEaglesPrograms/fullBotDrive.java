@@ -6,12 +6,22 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
+//Limelight
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
+import com.qualcomm.hardware.limelightvision.LLStatus;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+
 // Send the code and the operating mode to the robot with descriptions.
 @TeleOp(name = "Full Bot Drive", group = "MCA EAGLES PROGRAMS")
 public class fullBotDrive extends LinearOpMode {
 
     // Define the speedfactor variable to be used to control the max percent of speed.
     double speedFactor = 1.0;
+
+    double spindexer_cpr = 1425.1; //counts per revolution for spindexer motor, val from https://www.gobilda.com/5202-series-yellow-jacket-planetary-gear-motor-50-9-1-ratio-24mm-length-6mm-d-shaft-117-rpm-36mm-gearbox-3-3-5v-encoder/
+    int spindexer120RotTicks = (int)((120.0/360.0)*spindexer_cpr);
+
 
     // Define all of the motors.
     DcMotor frontLeft = null;
@@ -20,6 +30,8 @@ public class fullBotDrive extends LinearOpMode {
     DcMotor backRight = null;
     DcMotor intake = null;
     DcMotor spindexer = null;
+
+    Limelight3A limelight = null;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -47,15 +59,13 @@ public class fullBotDrive extends LinearOpMode {
         // Reset spindexer encoder
         spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
-        double spindexer_cpr = 12345; //counts per revolution for spindexer motor, idk what the val is
-        int spindexer120RotTicks = (int)((120.0/360.0)*spindexer_cpr);
+        //Setup Limelight
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
 
-        // General idea for spindexer 120 deg rotation
-        if (gamepad2.y) {
-            spindexer.setTargetPosition(spindexer.getCurrentPosition() + spindexer120RotTicks);
-            spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            spindexer.setPower(0.7);
-        }
+        telemetry.setMsTransmissionInterval(11); //why 11?
+
+        limelight.pipelineSwitch(0);
+        limelight.start();
 
 
         // Wait for the start button to be pushed before starting the run loop.
@@ -75,7 +85,52 @@ public class fullBotDrive extends LinearOpMode {
             intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
             // Set spindexer controls to move based off of the inputs of the x and y buttons of gamepad 2.
+            // General idea for spindexer 120 deg rotation
+            //Use x for continuous, y for discrete 120
 
+            //This continuous code is pretty dumb but should be fine
+//            if(gamepad2.x){
+//                spindexer.setPower(0.7)
+//            }else{
+//                spindexer.setPower(0);
+//            }
+            if (gamepad2.y) {
+                spindexer.setTargetPosition(spindexer.getCurrentPosition() + spindexer120RotTicks);
+                spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                spindexer.setPower(0.7);
+            }
+
+            //Camera stuff
+            LLStatus status = limelight.getStatus();
+            telemetry.addData("Name", "%s",
+                    status.getName());
+            telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
+                    status.getTemp(), status.getCpu(),(int)status.getFps());
+            telemetry.addData("Pipeline", "Index: %d, Type: %s",
+                    status.getPipelineIndex(), status.getPipelineType());
+
+
+            if(gamepad2.x){
+                List<FiducialResult> fiducials = result.getFiducialResults();
+                int closestFidId = -1;
+                double closestFidDist = 1000000;
+                for (FiducialResult fiducial : fiducials) {
+                    int id = fiducial.getFiducialId(); // The ID number of the fiducial
+                    double x = detection.getTargetXDegrees(); // Where it is (left-right)
+                    double y = detection.getTargetYDegrees(); // Where it is (up-down)
+                    double strafe_3d = fiducial.getRobotPoseTargetSpace().getY();
+                    double straight_3d = fiducial.getRobotPoseTargetSpace().getX();
+                    double distance = Math.sqrt(strafe_3d*strafe_3d + straight_3d*straight_3d);
+
+                    if(closestFidDist > distance){
+                        closestFidDist = distance;
+                        closestFidId = id;
+                    }
+
+                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away");
+                }
+                telemetry.addData("Closest fiducial "+closestFidId+" is "+closestFidDist+"m away");
+            }
 
             // Add telemetry data for all parts of the robot, for all motors and servos, for power and position, and for the current speed factor.
             telemetry.addData("Front Left Motor Power: ", frontLeft.getPower());
