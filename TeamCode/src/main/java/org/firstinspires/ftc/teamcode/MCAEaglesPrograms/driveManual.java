@@ -86,11 +86,11 @@ public class driveManual extends LinearOpMode {
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
             if (gamepad2.dpad_down) {
-                verticalPush.setPosition(0.47);
+                verticalPush.setPosition(0.35);
             }
 
             else if (gamepad2.dpad_up)
-                verticalPush.setPosition(0.53);
+                verticalPush.setPosition(0.65);
 
             telemetry.addData("Front Left Motor Power:", frontLeft.getPower());
             telemetry.addData("Front Left Motor Position:", frontLeft.getCurrentPosition());
