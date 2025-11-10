@@ -1,6 +1,7 @@
 // Import Required Files
 package org.firstinspires.ftc.teamcode.MCAEaglesPrograms;
 
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -8,8 +9,8 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
 // Send the code and the operating mode to the robot with descriptions.
-@TeleOp(name = "Manual Random Buttons Everything No Limelight", group = "MCA EAGLES PROGRAMS")
-public class driveManual extends LinearOpMode {
+@Autonomous(name = "Move Forwards", group = "MCA EAGLES PROGRAMS")
+public class auto extends LinearOpMode {
 
     // Define the speedfactor variable to be used to control the max percent of speed.
     double speedFactor = 1.0;
@@ -34,22 +35,6 @@ public class driveManual extends LinearOpMode {
         frontRight = hardwareMap.dcMotor.get("Front_Right");
         backLeft = hardwareMap.dcMotor.get("Back_Left");
         backRight = hardwareMap.dcMotor.get("Back_Right");
-        intake = hardwareMap.dcMotor.get("Intake");
-        flywheel = hardwareMap.dcMotor.get("Flywheel");
-        spindexer = hardwareMap.dcMotor.get("Spindexer");
-        turret = hardwareMap.dcMotor.get("Turret");
-
-        verticalPush = hardwareMap.servo.get("Vertical");
-        horizontalPush = hardwareMap.servo.get("Horizontal");
-
-        // Set all of the motors to brake when not powered.
-        frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // Reverse the direction of one side of the robot's motors.
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -60,60 +45,18 @@ public class driveManual extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            // TODO: Add power management.
+            frontLeft.setPower(1);
+            frontRight.setPower(1);
+            backLeft.setPower(1);
+            backRight.setPower(1);
 
-            // TODO: Add odo and auto tracking and movement during teleop.
+            sleep(2500);
 
-            // TODO: Add sensors and integrate them into code. - 3x Distance, 1x Pinpoint, 2x Parallel Odo, 1x Perpendicular Odo, 1x Color, 1x IMU, 1x Limelight
+            frontLeft.setPower(0);
+            frontRight.setPower(0);
+            backLeft.setPower(0);
+            backRight.setPower(0);
 
-            frontLeft.setPower((-gamepad1.left_stick_y + gamepad1.left_stick_x + gamepad1.right_stick_x) * speedFactor);
-            backLeft.setPower((-gamepad1.left_stick_y - gamepad1.left_stick_x + gamepad1.right_stick_x) * speedFactor);
-            frontRight.setPower((-gamepad1.left_stick_y - gamepad1.left_stick_x - gamepad1.right_stick_x) * speedFactor);
-            backRight.setPower((-gamepad1.left_stick_y + gamepad1.left_stick_x - gamepad1.right_stick_x) * speedFactor);
-
-            intake.setPower((gamepad1.left_trigger - gamepad1.right_trigger) * speedFactor);
-
-            if (gamepad2.x) {
-                spindexer.setPower(0.5 * speedFactor);
-            } else if (gamepad2.y) {
-                spindexer.setPower(-0.5 * speedFactor); // TODO: Add set positions to move to.
-            } else {
-                spindexer.setPower(0);
-            }
-
-            if (gamepad2.dpad_left) {
-                turret.setPower(-0.5 * speedFactor);
-            } else if(gamepad2.dpad_right) {
-                turret.setPower(0.5 * speedFactor);
-            } else {
-                turret.setPower(0);
-            }
-
-            flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
-
-            if (gamepad2.dpad_down) {
-                verticalPush.setPosition(0.35);
-//                horizontalPush.setPosition(0.47); // TODO: Setup horizontal shooter.
-            }
-
-            else if (gamepad2.dpad_up) {
-                verticalPush.setPosition(0.65);
-//                horizontalPush.setPosition(0.53);
-            }
-
-            if (gamepad2.left_bumper) {
-                continue; // TODO: Add shortcut to auto shoot here.
-            }
-
-            if (gamepad2.right_bumper) {
-                continue; // TODO: Toggle automatic aim or manual shoot.
-            }
-
-            if (gamepad1.y) {
-                speedFactor = 0.5;
-            } else if (gamepad1.x) {
-                speedFactor = 1.0;
-            }
 
             telemetry.addData("Front Left Motor Power:", frontLeft.getPower());
             telemetry.addData("Front Left Motor Position:", frontLeft.getCurrentPosition());
@@ -138,7 +81,7 @@ public class driveManual extends LinearOpMode {
             telemetry.addData("Vertical Pusher Position:", verticalPush.getPosition());
             telemetry.addData("Horizontal Pusher Position:", horizontalPush.getPosition());
             telemetry.addData("Speed Factor:", speedFactor);
-            
+
             // Update the telemetry.
             telemetry.update();
         }
