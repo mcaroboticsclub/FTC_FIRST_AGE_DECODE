@@ -7,6 +7,14 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
+import java.util.*;
+
+//Limelight
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLStatus;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.limelightvision.LLResultTypes.*;
+
 // Send the code and the operating mode to the robot with descriptions.
 @TeleOp(name = "Manual Random Buttons Everything No Limelight", group = "MCA EAGLES PROGRAMS")
 public class driveManual extends LinearOpMode {
@@ -54,6 +62,14 @@ public class driveManual extends LinearOpMode {
         // Reverse the direction of one side of the robot's motors.
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        // Setup Limelight
+        Limelight3A limelight = hardwareMap.get(Limelight3A.class, "limelight");
+
+        telemetry.setMsTransmissionInterval(11); //why 11?
+
+        limelight.pipelineSwitch(0);
+        limelight.start();
 
         // Wait for the start button to be pushed before starting the run loop.
         waitForStart();
@@ -114,6 +130,76 @@ public class driveManual extends LinearOpMode {
             } else if (gamepad1.x) {
                 speedFactor = 1.0;
             }
+
+
+
+
+            //Camera
+            LLStatus status = limelight.getStatus();
+            telemetry.addData("Name", "%s",
+                    status.getName());
+            telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
+                    status.getTemp(), status.getCpu(),(int)status.getFps());
+            telemetry.addData("Pipeline", "Index: %d, Type: %s",
+                    status.getPipelineIndex(), status.getPipelineType());
+
+            LLResult result = limelight.getLatestResult();
+
+            if(gamepad2.x){
+                List<FiducialResult> fiducials = result.getFiducialResults();
+                int closestFidId = -1;
+                double closestFidDist = 1000000;
+                double xDegrees = -1;
+                for (FiducialResult fiducial : fiducials) {
+                    int id = fiducial.getFiducialId(); // The ID number of the fiducial
+                    double x = fiducial.getTargetXDegrees(); // Where it is (left-right)
+//                    double y = detection.getTargetYDegrees(); // Where it is (up-down)
+                    double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
+                    double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
+                    double distance = Math.sqrt(strafe_3d*strafe_3d + straight_3d*straight_3d);
+
+                    if(closestFidDist > distance){
+                        closestFidDist = distance;
+                        closestFidId = id;
+                        xDegrees = x;
+                    }
+
+                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at "+x+" deg");
+                }
+                telemetry.addData("Closest fiducial ",closestFidId+" is "+closestFidDist+"m away at "+xDegrees+" deg");
+
+                //rotate to orientation based on xDegrees
+                //rotate to orientation based on xDegrees
+                if(closestFidId != -1) { // Only rotate if we found a fiducial
+                    double kP = 0.008; // Lower proportional gain for gentler response
+                    double minPower = 0.05; // Lower minimum power for smoother start
+                    double maxPower = 0.25; // Conservative max power limit
+                    double deadband = 1.0; // Tighter deadband for precision
+
+                    if(Math.abs(xDegrees) > deadband) {
+                        // Calculate turret rotation power (negative to rotate toward target)
+                        double turretPower = -xDegrees * kP;
+
+                        // Apply minimum power threshold
+                        if(Math.abs(turretPower) < minPower) {
+                            turretPower = Math.signum(turretPower) * minPower;
+                        }
+
+                        // Clamp to conservative max power
+                        turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
+
+                        // Apply power to turret
+                        turret.setPower(turretPower * speedFactor);
+
+                        telemetry.addData("Turret auto-aiming", "Error: %.2f°, Power: %.2f", xDegrees, turretPower);
+                    } else {
+                        turret.setPower(0);
+                        telemetry.addData("Turret", "Locked on target!");
+                    }
+                }
+
+            }
+
 
             telemetry.addData("Front Left Motor Power:", frontLeft.getPower());
             telemetry.addData("Front Left Motor Position:", frontLeft.getCurrentPosition());
