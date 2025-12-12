@@ -22,7 +22,7 @@ public class fullBotDrive extends LinearOpMode {
     double speedFactor = 1.0;
 
     double spindexer_cpr = 1425.1; //counts per revolution for spindexer motor
-    int spindexer120RotTicks = (int)((120.0/360.0)*spindexer_cpr);
+    int spindexer120RotTicks = (int) ((120.0 / 360.0) * spindexer_cpr);
 
     // Define all of the motors.
     DcMotor frontLeft = null;
@@ -112,22 +112,22 @@ public class fullBotDrive extends LinearOpMode {
             double turretPower = 0;
 
             // Left bumper = turn LEFT, Right bumper = turn RIGHT
-            if(gamepad2.left_bumper) {
+            if (gamepad2.left_bumper) {
                 turretPower = -0.5;  // Turn left at 50% speed
-            } else if(gamepad2.right_bumper) {
+            } else if (gamepad2.right_bumper) {
                 turretPower = 0.5;   // Turn right at 50% speed
             }
 
             // ===== ENFORCE POSITION LIMITS =====
-            if(enforceLimits) {
+            if (enforceLimits) {
                 int currentPos = turret.getCurrentPosition();
 
                 // Check if at limits
-                if(currentPos <= turretMinPosition && turretPower < 0) {
+                if (currentPos <= turretMinPosition && turretPower < 0) {
                     // At LEFT limit, trying to go MORE left → STOP
                     turretPower = 0;
                     telemetry.addData("⚠️ LIMIT", "At LEFT limit!");
-                } else if(currentPos >= turretMaxPosition && turretPower > 0) {
+                } else if (currentPos >= turretMaxPosition && turretPower > 0) {
                     // At RIGHT limit, trying to go MORE right → STOP
                     turretPower = 0;
                     telemetry.addData("⚠️ LIMIT", "At RIGHT limit!");
@@ -145,15 +145,15 @@ public class fullBotDrive extends LinearOpMode {
             LLStatus status = limelight.getStatus();
             telemetry.addData("Camera", "%s", status.getName());
             telemetry.addData("LL Stats", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
-                    status.getTemp(), status.getCpu(), (int)status.getFps());
+                    status.getTemp(), status.getCpu(), (int) status.getFps());
 
             // Optional: Show if camera sees any AprilTags
             LLResult result = limelight.getLatestResult();
-            if(result != null && result.isValid()) {
+            if (result != null && result.isValid()) {
                 List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
-                if(!fiducials.isEmpty()) {
+                if (!fiducials.isEmpty()) {
                     telemetry.addData("AprilTags Visible", fiducials.size());
-                    for(LLResultTypes.FiducialResult fiducial : fiducials) {
+                    for (LLResultTypes.FiducialResult fiducial : fiducials) {
                         telemetry.addData("  ID " + fiducial.getFiducialId(),
                                 "%.1f° @ %.2fm",
                                 fiducial.getTargetXDegrees(),

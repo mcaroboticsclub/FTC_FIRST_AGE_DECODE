@@ -22,7 +22,7 @@ public class fullBotDriveRed extends LinearOpMode {
     double speedFactor = 1.0;
 
     double spindexer_cpr = 1425.1; //counts per revolution for spindexer motor, val from https://www.gobilda.com/5202-series-yellow-jacket-planetary-gear-motor-50-9-1-ratio-24mm-length-6mm-d-shaft-117-rpm-36mm-gearbox-3-3-5v-encoder/
-    int spindexer120RotTicks = (int)((120.0/360.0)*spindexer_cpr);
+    int spindexer120RotTicks = (int) ((120.0 / 360.0) * spindexer_cpr);
 
 
     // Define all of the motors.
@@ -126,7 +126,7 @@ public class fullBotDriveRed extends LinearOpMode {
             // ========== TURRET AUTO-TRACKING (BLUE GOAL) ==========
 
 // Toggle tracking on/off with D-Pad UP
-            if(gamepad2.dpad_up) {
+            if (gamepad2.dpad_up) {
                 autoTrackEnabled = !autoTrackEnabled;
                 sleep(200);
             }
@@ -134,30 +134,30 @@ public class fullBotDriveRed extends LinearOpMode {
 // Get the latest camera data
             LLResult result = limelight.getLatestResult();
 
-            if(autoTrackEnabled && result != null && result.isValid()) {
+            if (autoTrackEnabled && result != null && result.isValid()) {
                 // Auto-tracking mode
 
                 List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
 
-                if(!fiducials.isEmpty()) {
+                if (!fiducials.isEmpty()) {
                     // Find the BLUE AprilTag
                     LLResultTypes.FiducialResult targetFiducial = null;
                     double targetDistance = 0;
 
                     for (LLResultTypes.FiducialResult fiducial : fiducials) {
                         // Check if this is our BLUE target AprilTag
-                        if(fiducial.getFiducialId() == redAllianceAprilTagID) {
+                        if (fiducial.getFiducialId() == redAllianceAprilTagID) {
                             targetFiducial = fiducial;
 
                             // Calculate distance for telemetry
                             double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
                             double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
-                            targetDistance = Math.sqrt(strafe_3d*strafe_3d + straight_3d*straight_3d);
+                            targetDistance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
                             break; // Found our target, stop searching
                         }
                     }
 
-                    if(targetFiducial != null) {
+                    if (targetFiducial != null) {
                         // Get horizontal angle to target
                         double tx = targetFiducial.getTargetXDegrees();
 
@@ -168,20 +168,20 @@ public class fullBotDriveRed extends LinearOpMode {
 
                         // Only move if we're outside the acceptable range
 // Only move if we're outside the acceptable range
-                        if(Math.abs(tx) > targetDeadband) {
+                        if (Math.abs(tx) > targetDeadband) {
                             // Safety: Limit power to prevent violent movements
                             turretPower = Math.max(-0.5, Math.min(0.5, turretPower));
 
                             // ===== ENFORCE POSITION LIMITS =====
-                            if(enforceLimits) {
+                            if (enforceLimits) {
                                 int currentPos = turret.getCurrentPosition();
 
                                 // Check if at limits
-                                if(currentPos <= turretMinPosition && turretPower < 0) {
+                                if (currentPos <= turretMinPosition && turretPower < 0) {
                                     // At LEFT limit, trying to go MORE left → STOP
                                     turret.setPower(0);
                                     telemetry.addData("LIMIT", "At LEFT limit!");
-                                } else if(currentPos >= turretMaxPosition && turretPower > 0) {
+                                } else if (currentPos >= turretMaxPosition && turretPower > 0) {
                                     // At RIGHT limit, trying to go MORE right → STOP
                                     turret.setPower(0);
                                     telemetry.addData("LIMIT", "At RIGHT limit!");
@@ -230,15 +230,15 @@ public class fullBotDriveRed extends LinearOpMode {
                 double turretManualPower = gamepad2.right_stick_x * 0.5;
 
                 //ENFORCE POSITION LIMITS IN MANUAL MODE
-                if(enforceLimits) {
+                if (enforceLimits) {
                     int currentPos = turret.getCurrentPosition();
 
                     // Check if at limits
-                    if(currentPos <= turretMinPosition && turretManualPower < 0) {
+                    if (currentPos <= turretMinPosition && turretManualPower < 0) {
                         // At LEFT limit, trying to go MORE left → STOP
                         turretManualPower = 0;
                         telemetry.addData("LIMIT", "At LEFT limit!");
-                    } else if(currentPos >= turretMaxPosition && turretManualPower > 0) {
+                    } else if (currentPos >= turretMaxPosition && turretManualPower > 0) {
                         // At RIGHT limit, trying to go MORE right → STOP
                         turretManualPower = 0;
                         telemetry.addData("LIMIT", "At RIGHT limit!");
@@ -278,7 +278,7 @@ public class fullBotDriveRed extends LinearOpMode {
             LLStatus status = limelight.getStatus();
             telemetry.addData("Camera", "%s", status.getName());
             telemetry.addData("LL Stats", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
-                    status.getTemp(), status.getCpu(), (int)status.getFps());
+                    status.getTemp(), status.getCpu(), (int) status.getFps());
 
             //Camera stuff
 //            LLStatus status = limelight.getStatus();

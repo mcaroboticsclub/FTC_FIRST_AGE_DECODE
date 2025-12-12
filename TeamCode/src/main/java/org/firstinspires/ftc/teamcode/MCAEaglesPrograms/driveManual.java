@@ -22,6 +22,9 @@ public class driveManual extends LinearOpMode {
     // Define the speedfactor variable to be used to control the max percent of speed.
     double speedFactor = 1.0;
 
+    // Autotrack.
+    boolean autoTrackEnabled = false;
+
     // Define all of the motors.
     DcMotor frontLeft = null;
     DcMotor frontRight = null;
@@ -97,25 +100,17 @@ public class driveManual extends LinearOpMode {
                 spindexer.setPower(0);
             }
 
-            if (gamepad2.dpad_left) {
-                turret.setPower(-0.5 * speedFactor);
-            } else if(gamepad2.dpad_right) {
-                turret.setPower(0.5 * speedFactor);
-            } else {
-                turret.setPower(0);
-            }
-
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
-            if (gamepad2.dpad_down) {
-                verticalPush.setPosition(0.35);
-//                horizontalPush.setPosition(0.47); // TODO: Setup horizontal shooter.
-            }
-
-            else if (gamepad2.dpad_up) {
-                verticalPush.setPosition(0.65);
-//                horizontalPush.setPosition(0.53);
-            }
+//            if (gamepad2.dpad_down) {
+//                verticalPush.setPosition(0.35);
+////                horizontalPush.setPosition(0.47); // TODO: Setup horizontal shooter.
+//            }
+//
+//            else if (gamepad2.dpad_up) {
+//                verticalPush.setPosition(0.65);
+////                horizontalPush.setPosition(0.53);
+//            }
 
             if (gamepad2.left_bumper) {
                 continue; // TODO: Add shortcut to auto shoot here.
@@ -132,20 +127,29 @@ public class driveManual extends LinearOpMode {
             }
 
 
-
-
             //Camera
             LLStatus status = limelight.getStatus();
             telemetry.addData("Name", "%s",
                     status.getName());
             telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
-                    status.getTemp(), status.getCpu(),(int)status.getFps());
+                    status.getTemp(), status.getCpu(), (int) status.getFps());
             telemetry.addData("Pipeline", "Index: %d, Type: %s",
                     status.getPipelineIndex(), status.getPipelineType());
 
             LLResult result = limelight.getLatestResult();
 
-            if(gamepad2.x){
+            if (autoTrackEnabled = false) {
+                if (gamepad2.dpad_left) {
+                    turret.setPower(-0.5 * speedFactor);
+                } else if (gamepad2.dpad_right) {
+                    turret.setPower(0.5 * speedFactor);
+                } else {
+                    turret.setPower(0);
+                }
+            }
+
+            if (autoTrackEnabled = true) {
+
                 List<FiducialResult> fiducials = result.getFiducialResults();
                 int closestFidId = -1;
                 double closestFidDist = 1000000;
@@ -156,37 +160,57 @@ public class driveManual extends LinearOpMode {
 //                    double y = detection.getTargetYDegrees(); // Where it is (up-down)
                     double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
                     double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
-                    double distance = Math.sqrt(strafe_3d*strafe_3d + straight_3d*straight_3d);
+                    double distance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
 
-                    if(closestFidDist > distance){
+                    if (closestFidDist > distance) {
                         closestFidDist = distance;
                         closestFidId = id;
                         xDegrees = x;
                     }
 
-                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at "+x+" deg");
+                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at " + x + " deg");
                 }
-                telemetry.addData("Closest fiducial ",closestFidId+" is "+closestFidDist+"m away at "+xDegrees+" deg");
+                telemetry.addData("Closest fiducial ", closestFidId + " is " + closestFidDist + "m away at " + xDegrees + " deg");
+
+//                turret_max = 900
+//                turret_min = -200
+
 
                 //rotate to orientation based on xDegrees
-                //rotate to orientation based on xDegrees
-                if(closestFidId != -1) { // Only rotate if we found a fiducial
-                    double kP = 0.008; // Lower proportional gain for gentler response
-                    double minPower = 0.05; // Lower minimum power for smoother start
-                    double maxPower = 0.25; // Conservative max power limit
-                    double deadband = 1.0; // Tighter deadband for precision
+                if (closestFidId != -1) { // Only rotate if we found a fiducial
+                    double kP = 0.012; // Lower proportional gain for gentler response
+                    double minPower = 0.1; // Lower minimum power for smoother start
+                    double maxPower = 0.5; // Conservative max power limit
+                    double deadband = 0.5; // Tighter deadband for precision
 
-                    if(Math.abs(xDegrees) > deadband) {
+                    if (Math.abs(xDegrees) > deadband) { // TODO: Calc to theta encoder and lock on.
                         // Calculate turret rotation power (negative to rotate toward target)
                         double turretPower = -xDegrees * kP;
-
+                        telemetry.addData("Power is ", turretPower + " position is ", xDegrees);
                         // Apply minimum power threshold
-                        if(Math.abs(turretPower) < minPower) {
+                        if (Math.abs(turretPower) < minPower) {
                             turretPower = Math.signum(turretPower) * minPower;
                         }
 
                         // Clamp to conservative max power
                         turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
+
+                        if (turret.getCurrentPosition() > 900) {
+                            turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                            turret.setTargetPosition(900);
+                            turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                            turret.setPower(0.4);
+                        }
+
+                        else if (turret.getCurrentPosition() < -200) {
+                            turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                            turret.setTargetPosition(-200);
+                            turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                            turret.setPower(0.4);
+                        }
+                        else {
+                            turret.setPower(turretPower);
+                        }
 
                         // Apply power to turret
                         turret.setPower(turretPower * speedFactor);
@@ -197,9 +221,12 @@ public class driveManual extends LinearOpMode {
                         telemetry.addData("Turret", "Locked on target!");
                     }
                 }
-
             }
 
+            if (gamepad2.dpad_up) {
+                autoTrackEnabled = !autoTrackEnabled;
+                sleep(200);
+            }
 
             telemetry.addData("Front Left Motor Power:", frontLeft.getPower());
             telemetry.addData("Front Left Motor Position:", frontLeft.getCurrentPosition());
@@ -224,7 +251,8 @@ public class driveManual extends LinearOpMode {
             telemetry.addData("Vertical Pusher Position:", verticalPush.getPosition());
             telemetry.addData("Horizontal Pusher Position:", horizontalPush.getPosition());
             telemetry.addData("Speed Factor:", speedFactor);
-            
+            telemetry.addData("Automatic Tracking Enabled:", autoTrackEnabled);
+
             // Update the telemetry.
             telemetry.update();
         }

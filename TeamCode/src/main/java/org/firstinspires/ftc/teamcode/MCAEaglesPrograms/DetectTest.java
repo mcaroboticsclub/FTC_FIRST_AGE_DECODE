@@ -22,7 +22,7 @@ public class DetectTest extends LinearOpMode {
     double speedFactor = 1.0;
 
     double spindexer_cpr = 1425.1; //counts per revolution for spindexer motor, val from https://www.gobilda.com/5202-series-yellow-jacket-planetary-gear-motor-50-9-1-ratio-24mm-length-6mm-d-shaft-117-rpm-36mm-gearbox-3-3-5v-encoder/
-    int spindexer120RotTicks = (int)((120.0/360.0)*spindexer_cpr);
+    int spindexer120RotTicks = (int) ((120.0 / 360.0) * spindexer_cpr);
 
 
     // Define all of the motors.
@@ -107,13 +107,13 @@ public class DetectTest extends LinearOpMode {
             telemetry.addData("Name", "%s",
                     status.getName());
             telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
-                    status.getTemp(), status.getCpu(),(int)status.getFps());
+                    status.getTemp(), status.getCpu(), (int) status.getFps());
             telemetry.addData("Pipeline", "Index: %d, Type: %s",
                     status.getPipelineIndex(), status.getPipelineType());
 
             LLResult result = limelight.getLatestResult();
 
-            if(gamepad2.x){
+            if (gamepad2.x) {
                 List<FiducialResult> fiducials = result.getFiducialResults();
                 int closestFidId = -1;
                 double closestFidDist = 1000000;
@@ -124,17 +124,17 @@ public class DetectTest extends LinearOpMode {
 //                    double y = detection.getTargetYDegrees(); // Where it is (up-down)
                     double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
                     double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
-                    double distance = Math.sqrt(strafe_3d*strafe_3d + straight_3d*straight_3d);
+                    double distance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
 
-                    if(closestFidDist > distance){
+                    if (closestFidDist > distance) {
                         closestFidDist = distance;
                         closestFidId = id;
                         xDegrees = x;
                     }
 
-                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at "+x+" deg");
+                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at " + x + " deg");
                 }
-                telemetry.addData("Closest fiducial ",closestFidId+" is "+closestFidDist+"m away at "+xDegrees+" deg");
+                telemetry.addData("Closest fiducial ", closestFidId + " is " + closestFidDist + "m away at " + xDegrees + " deg");
 
                 //rotate to orientation based on xDegrees
             }
