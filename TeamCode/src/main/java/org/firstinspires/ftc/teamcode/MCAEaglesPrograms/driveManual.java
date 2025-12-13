@@ -36,6 +36,7 @@ public class driveManual extends LinearOpMode {
     static final int SPIN_SLOT_1 = 510;
     static final int SPIN_SLOT_2 = 955;
     static final int TOTAL_SPIN_SLOTS = 3;
+    static final int SPIN_TOLERANCE = 20; // How close is "close enough"
     int currentSpindexerSlot = 0;
     boolean spindexerButtonLast = false;
     
@@ -91,7 +92,6 @@ public class driveManual extends LinearOpMode {
 
         // Spindexer encoder setup
         spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        spindexer.setTargetPositionTolerance(15); // Allow 15 tick tolerance
         spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         spindexer.setPower(0);
 
@@ -141,16 +141,13 @@ public class driveManual extends LinearOpMode {
                 int targetPos = spindexer.getTargetPosition();
                 int positionError = Math.abs(targetPos - currentPos);
                 
-                // Stop if: not busy, timed out, or within tolerance manually checked
-                if (!spindexer.isBusy() || elapsed > SPINDEXER_TIMEOUT_MS || positionError < 20) {
+                // Stop if: within tolerance OR timed out
+                if (positionError < SPIN_TOLERANCE || elapsed > SPINDEXER_TIMEOUT_MS) {
                     spindexer.setPower(0);
                     spindexerMoving = false;
                     
                     if (elapsed > SPINDEXER_TIMEOUT_MS) {
-                        telemetry.addData("⚠ WARNING", "Spindexer timeout! Check mechanism.");
-                    }
-                    if (positionError > 50) {
-                        telemetry.addData("⚠ WARNING", "Spindexer position error: " + positionError);
+                        telemetry.addData("⚠ WARNING", "Spindexer timeout!");
                     }
                 }
             }
@@ -294,11 +291,10 @@ public class driveManual extends LinearOpMode {
 
             telemetry.addData("--- SPINDEXER ---", "");
             telemetry.addData("Spin Slot", currentSpindexerSlot);
-            telemetry.addData("Spin Current Pos", spindexer.getCurrentPosition());
-            telemetry.addData("Spin Target Pos", spindexer.getTargetPosition());
+            telemetry.addData("Spin Current", spindexer.getCurrentPosition());
+            telemetry.addData("Spin Target", spindexer.getTargetPosition());
             telemetry.addData("Spin Error", Math.abs(spindexer.getTargetPosition() - spindexer.getCurrentPosition()));
             telemetry.addData("Spin Moving", spindexerMoving);
-            telemetry.addData("Spin isBusy", spindexer.isBusy());
             telemetry.addData("Spin Power", spindexer.getPower());
 
             telemetry.addData("Vertical Servo", verticalPush.getPosition());
