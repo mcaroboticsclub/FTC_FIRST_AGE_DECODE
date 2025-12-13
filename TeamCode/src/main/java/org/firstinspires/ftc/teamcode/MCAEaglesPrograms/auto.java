@@ -7,9 +7,10 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import dev.nextftc.control.ControlSystem;
 
 // Send the code and the operating mode to the robot with descriptions.
-@Autonomous(name = "Move Forwards", group = "MCA EAGLES PROGRAMS")
+@Autonomous(name = "Move Back", group = "MCA EAGLES PROGRAMS")
 public class auto extends LinearOpMode {
 
     // Define the speedfactor variable to be used to control the max percent of speed.
@@ -20,9 +21,6 @@ public class auto extends LinearOpMode {
     DcMotor frontRight = null;
     DcMotor backLeft = null;
     DcMotor backRight = null;
-    DcMotor intake = null;
-    DcMotor spindexer = null;
-    DcMotor turret = null;
     DcMotor flywheel = null;
     Servo verticalPush = null;
     Servo horizontalPush = null;
@@ -35,6 +33,14 @@ public class auto extends LinearOpMode {
         frontRight = hardwareMap.dcMotor.get("Front_Right");
         backLeft = hardwareMap.dcMotor.get("Back_Left");
         backRight = hardwareMap.dcMotor.get("Back_Right");
+        flywheel = hardwareMap.dcMotor.get("Flywheel");
+        verticalPush = hardwareMap.servo.get("Vertical");
+        horizontalPush = hardwareMap.servo.get("Horizontal");
+
+        frontLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        frontRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        backLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        backRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         // Reverse the direction of one side of the robot's motors.
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -45,45 +51,79 @@ public class auto extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            frontLeft.setPower(1);
-            frontRight.setPower(1);
-            backLeft.setPower(1);
-            backRight.setPower(1);
 
-            sleep(2500);
+
+            double CPR = 537.7;
+            double actDist = 10; //in
+            double circumferenceIn = Math.PI * 4.09449;
+            double revolutions = actDist/circumferenceIn;
+            double ticks = CPR * revolutions;
+
+            ticks = 300;
+
+            int oldFrontLeftPos = (int) frontLeft.getCurrentPosition();
+            int oldBackRightPos = (int)backLeft.getCurrentPosition();
+            int oldFrontRightPos = (int)frontRight.getCurrentPosition();
+            int oldBackLeftPos = (int)backRight.getCurrentPosition();
+
+            frontLeft.setTargetPosition(oldFrontLeftPos - (int) ticks);
+            frontRight.setTargetPosition(oldFrontRightPos - (int) ticks);
+            backLeft.setTargetPosition(oldBackLeftPos - (int) ticks);
+            backRight.setTargetPosition(oldBackRightPos - (int) ticks);
+
+//            frontLeft.setTargetPosition((int) ticks);
+//            frontRight.setTargetPosition( (int) ticks);
+//            backLeft.setTargetPosition( (int) ticks);
+//            backRight.setTargetPosition( (int) ticks);
+
+            frontLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            frontRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            backLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            backRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+            frontLeft.setPower(0.5);
+            frontRight.setPower(0.5);
+            backLeft.setPower(0.5);
+            backRight.setPower(0.5);
+
+
+            sleep(1800);
 
             frontLeft.setPower(0);
             frontRight.setPower(0);
             backLeft.setPower(0);
             backRight.setPower(0);
 
-
-            telemetry.addData("Front Left Motor Power:", frontLeft.getPower());
-            telemetry.addData("Front Left Motor Position:", frontLeft.getCurrentPosition());
-            telemetry.addData("Front Right Motor Power:", frontRight.getPower());
-            telemetry.addData("Front Right Motor Position:", frontRight.getCurrentPosition());
-            telemetry.addData("Back Left Motor Power:", backLeft.getPower());
-            telemetry.addData("Back Left Motor Position:", backLeft.getCurrentPosition());
-            telemetry.addData("Back Right Motor Power:", backRight.getPower());
-            telemetry.addData("Back Right Motor Position:", backRight.getCurrentPosition());
-            telemetry.addData("Intake Motor Power:", intake.getPower());
-            telemetry.addData("Intake Motor Position Now:", intake.getCurrentPosition());
-            telemetry.addData("Intake Motor Position Target:", intake.getTargetPosition());
-            telemetry.addData("Spindexer Motor Power:", spindexer.getPower());
-            telemetry.addData("Spindexer Motor Position Now:", spindexer.getCurrentPosition());
-            telemetry.addData("Spindexer Motor Position Target:", spindexer.getTargetPosition());
-            telemetry.addData("Turret Motor Power:", turret.getPower());
-            telemetry.addData("Turret Motor Position Now:", turret.getCurrentPosition());
-            telemetry.addData("Turret Motor Position Target:", turret.getCurrentPosition());
-            telemetry.addData("Flywheel Motor Power:", flywheel.getPower());
-            telemetry.addData("Flywheel Motor Position Now:", flywheel.getCurrentPosition());
-            telemetry.addData("Flywheel Motor Position Target:", flywheel.getTargetPosition());
-            telemetry.addData("Vertical Pusher Position:", verticalPush.getPosition());
-            telemetry.addData("Horizontal Pusher Position:", horizontalPush.getPosition());
-            telemetry.addData("Speed Factor:", speedFactor);
-
-            // Update the telemetry.
+            flywheel.setPower(-0.8);
+            // 1) push horizontally
+            horizontalPush.setPosition(0.85);
             telemetry.update();
+            sleep(500);
+
+            // 2) then push vertically
+            verticalPush.setPosition(1);
+            sleep(1200);
+            telemetry.update();
+            horizontalPush.setPosition(1);
+            sleep(700);
+
+            // reset
+            verticalPush.setPosition(0.11);
+            horizontalPush.setPosition(0.43);
+
+
+//            frontLeft.setPower(1);
+//            frontRight.setPower(-1);
+//            backLeft.setPower(-1);
+//            backRight.setPower(1);
+//
+//            sleep(2500);
+//
+//            frontLeft.setPower(0);
+//            frontRight.setPower(0);
+//            backLeft.setPower(0);
+//            backRight.setPower(0);
+
         }
     }
 }
