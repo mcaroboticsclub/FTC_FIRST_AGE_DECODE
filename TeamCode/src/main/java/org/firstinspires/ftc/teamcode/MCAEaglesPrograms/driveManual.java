@@ -38,6 +38,11 @@ public class driveManual extends LinearOpMode {
     static final int TOTAL_SPIN_SLOTS = 3;
     int currentSpindexerSlot = 0;
     boolean spindexerButtonLast = false;
+    
+    // Spindexer timeout tracking
+    long spindexerMoveStartTime = 0;
+    boolean spindexerMoving = false;
+    static final long SPINDEXER_TIMEOUT_MS = 2000; // 2 second timeout
 
     // Motors / servos
     DcMotor frontLeft = null;
@@ -84,15 +89,11 @@ public class driveManual extends LinearOpMode {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // ----------------------------
-        // Spindexer encoder setup (Fix B)
-        // MUST set target BEFORE RUN_TO_POSITION or you'll get TargetPositionNotSetException.
-        // ----------------------------
+        // Spindexer encoder setup
         spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        spindexer.setTargetPosition(SPIN_SLOT_0);              // <-- FIX: set target first
-        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);    // now it's safe
-        spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        spindexer.setPower(0);                                 // don't move until start
+        spindexer.setTargetPositionTolerance(15); // Allow 15 tick tolerance
+        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        spindexer.setPower(0);
 
         // Turret encoder setup
         // IMPORTANT: This makes "0 = forward" ONLY if the turret is physically pointing forward right now.
@@ -108,8 +109,9 @@ public class driveManual extends LinearOpMode {
 
         waitForStart();
 
-        // Start at slot 0 (this will apply power and ensure it goes where you want)
         goToSpindexerSlot(0);
+        spindexerMoving = true;
+        spindexerMoveStartTime = System.currentTimeMillis();
 
         while (opModeIsActive()) {
 
@@ -124,15 +126,33 @@ public class driveManual extends LinearOpMode {
 
             // Spindexer: press X to advance slot (rising-edge)
             boolean spindexerButtonNow = gamepad2.x;
-            if (spindexerButtonNow && !spindexerButtonLast) {
+            if (spindexerButtonNow && !spindexerButtonLast && !spindexerMoving) {
                 int nextSlot = (currentSpindexerSlot + 1) % TOTAL_SPIN_SLOTS;
                 goToSpindexerSlot(nextSlot);
+                spindexerMoving = true;
+                spindexerMoveStartTime = System.currentTimeMillis();
             }
             spindexerButtonLast = spindexerButtonNow;
 
-            // Optional: stop power once it reaches target (won't actively hold)
-            if (!spindexer.isBusy()) {
-                spindexer.setPower(0);
+            // Check if spindexer move is complete or timed out
+            if (spindexerMoving) {
+                long elapsed = System.currentTimeMillis() - spindexerMoveStartTime;
+                int currentPos = spindexer.getCurrentPosition();
+                int targetPos = spindexer.getTargetPosition();
+                int positionError = Math.abs(targetPos - currentPos);
+                
+                // Stop if: not busy, timed out, or within tolerance manually checked
+                if (!spindexer.isBusy() || elapsed > SPINDEXER_TIMEOUT_MS || positionError < 20) {
+                    spindexer.setPower(0);
+                    spindexerMoving = false;
+                    
+                    if (elapsed > SPINDEXER_TIMEOUT_MS) {
+                        telemetry.addData("⚠ WARNING", "Spindexer timeout! Check mechanism.");
+                    }
+                    if (positionError > 50) {
+                        telemetry.addData("⚠ WARNING", "Spindexer position error: " + positionError);
+                    }
+                }
             }
 
             // Flywheel
@@ -192,6 +212,7 @@ public class driveManual extends LinearOpMode {
             } else {
                 // Auto-aim (open-loop power) with encoder limits
                 LLResult result = limelight.getLatestResult();
+
                 double turretPower = 0;
 
                 if (result != null) {
@@ -232,11 +253,15 @@ public class driveManual extends LinearOpMode {
                         if (Math.abs(xDegrees) > deadband) {
                             turretPower = -xDegrees * kP;
 
+                            // minimum power
                             if (Math.abs(turretPower) < minPower) {
                                 turretPower = Math.signum(turretPower) * minPower;
                             }
 
+                            // clamp max power
                             turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
+
+                            // apply speed factor
                             turretPower *= speedFactor;
                         } else {
                             turretPower = 0;
@@ -267,10 +292,14 @@ public class driveManual extends LinearOpMode {
             telemetry.addData("Turret Limits", "[" + TURRET_MIN_TICKS + ", " + TURRET_MAX_TICKS + "]");
             telemetry.addData("AutoTrack", autoTrackEnabled);
 
-            telemetry.addData("Spindexer Slot", currentSpindexerSlot);
-            telemetry.addData("Spindexer Now", spindexer.getCurrentPosition());
-            telemetry.addData("Spindexer Target", spindexer.getTargetPosition());
-            telemetry.addData("Spindexer Busy", spindexer.isBusy());
+            telemetry.addData("--- SPINDEXER ---", "");
+            telemetry.addData("Spin Slot", currentSpindexerSlot);
+            telemetry.addData("Spin Current Pos", spindexer.getCurrentPosition());
+            telemetry.addData("Spin Target Pos", spindexer.getTargetPosition());
+            telemetry.addData("Spin Error", Math.abs(spindexer.getTargetPosition() - spindexer.getCurrentPosition()));
+            telemetry.addData("Spin Moving", spindexerMoving);
+            telemetry.addData("Spin isBusy", spindexer.isBusy());
+            telemetry.addData("Spin Power", spindexer.getPower());
 
             telemetry.addData("Vertical Servo", verticalPush.getPosition());
             telemetry.addData("Horizontal Servo", horizontalPush.getPosition());
@@ -295,6 +324,6 @@ public class driveManual extends LinearOpMode {
 
         spindexer.setTargetPosition(target);
         spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        spindexer.setPower(0.5);
+        spindexer.setPower(1.0); // Increased from 0.5 to 1.0 for more torque
     }
 }
