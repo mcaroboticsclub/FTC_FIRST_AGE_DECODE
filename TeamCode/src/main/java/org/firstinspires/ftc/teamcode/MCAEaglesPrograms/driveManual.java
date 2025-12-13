@@ -138,7 +138,7 @@ public class driveManual extends LinearOpMode {
 
             LLResult result = limelight.getLatestResult();
 
-            if (autoTrackEnabled = false) {
+            if (autoTrackEnabled == false) {
                 if (gamepad2.dpad_left) {
                     turret.setPower(-0.5 * speedFactor);
                 } else if (gamepad2.dpad_right) {
