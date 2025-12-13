@@ -40,6 +40,9 @@ public class driveManual extends LinearOpMode {
     Servo verticalPush = null;
     Servo horizontalPush = null;
 
+    int[] spindexerPos = {0, 500, 950};
+    int currentPos = 0;
+
     @Override
     public void runOpMode() throws InterruptedException {
 
@@ -70,6 +73,13 @@ public class driveManual extends LinearOpMode {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
+        // Setup spindexer
+        spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        spindexer.setTargetPosition(spindexerPos[currentPos]);
+        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        spindexer.setPower(speedFactor);
+
         // Setup Limelight
         Limelight3A limelight = hardwareMap.get(Limelight3A.class, "limelight");
 
@@ -97,11 +107,24 @@ public class driveManual extends LinearOpMode {
             intake.setPower((gamepad1.left_trigger - gamepad1.right_trigger) * speedFactor);
 
             if (gamepad2.x) {
+                currentPos+=1;
+                if (currentPos > 2) {
+                    currentPos = 0;
+                }
+
+                spindexer.setTargetPosition(spindexerPos[currentPos]);
+                spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                 spindexer.setPower(speedFactor);
+
             } else if (gamepad2.y) {
-                spindexer.setPower(-speedFactor); // TODO: Add set positions to move to.
-            } else {
-                spindexer.setPower(0);
+                currentPos-=1;
+                if (currentPos < 0) {
+                    currentPos = 2;
+                }
+
+                spindexer.setTargetPosition(spindexerPos[currentPos]);
+                spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                spindexer.setPower(speedFactor);
             }
 
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
