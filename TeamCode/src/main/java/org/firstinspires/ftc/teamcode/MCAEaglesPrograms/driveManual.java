@@ -26,6 +26,12 @@ public class driveManual extends LinearOpMode {
     boolean autoTrackEnabled = false;
     boolean triggerShoot = false;
     boolean prevDpadDown = false;
+    static final int SPIN_SLOT_0 = 0;
+    static final int SPIN_SLOT_1 = 510;
+    static final int SPIN_SLOT_2 = 955;
+    static final int TOTAL_SPIN_SLOTS = 3;
+    int currentSpindexerSlot = 0;
+    boolean spindexerButtonLast = false;
 
 
     // Define all of the motors.
@@ -51,6 +57,9 @@ public class driveManual extends LinearOpMode {
         intake = hardwareMap.dcMotor.get("Intake");
         flywheel = hardwareMap.dcMotor.get("Flywheel");
         spindexer = hardwareMap.dcMotor.get("Spindexer");
+        spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         turret = hardwareMap.dcMotor.get("Turret");
 
         verticalPush = hardwareMap.servo.get("Vertical");
@@ -80,6 +89,7 @@ public class driveManual extends LinearOpMode {
 
         // Wait for the start button to be pushed before starting the run loop.
         waitForStart();
+        goToSpindexerSlot(0);
 
         while (opModeIsActive()) {
 
@@ -96,11 +106,19 @@ public class driveManual extends LinearOpMode {
 
             intake.setPower((gamepad1.left_trigger - gamepad1.right_trigger) * speedFactor);
 
-            if (gamepad2.x) {
-                spindexer.setPower(speedFactor);
-            } else if (gamepad2.y) {
-                spindexer.setPower(-speedFactor); // TODO: Add set positions to move to.
-            } else {
+            boolean spindexerButtonNow = gamepad2.x;
+
+// rising-edge detection
+            if (spindexerButtonNow && !spindexerButtonLast) {
+                int nextSlot = (currentSpindexerSlot + 1) % TOTAL_SPIN_SLOTS;
+                goToSpindexerSlot(nextSlot);
+            }
+
+// save button state
+            spindexerButtonLast = spindexerButtonNow;
+
+            // stopping power once it reaches a certian position
+            if (!spindexer.isBusy()) {
                 spindexer.setPower(0);
             }
 
@@ -271,4 +289,22 @@ public class driveManual extends LinearOpMode {
             telemetry.update();
         }
     }
+    // spindexer slot function
+    void goToSpindexerSlot(int slot) {
+
+        currentSpindexerSlot = slot;
+        int target;
+
+        switch (slot) {
+            case 0: target = SPIN_SLOT_0; break;
+            case 1: target = SPIN_SLOT_1; break;
+            case 2: target = SPIN_SLOT_2; break;
+            default: target = SPIN_SLOT_0;
+        }
+
+        spindexer.setTargetPosition(target);
+        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        spindexer.setPower(0.5);
+    }
 }
+
