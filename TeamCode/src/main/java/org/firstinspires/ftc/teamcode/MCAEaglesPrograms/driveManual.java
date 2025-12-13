@@ -148,7 +148,7 @@ public class driveManual extends LinearOpMode {
                 }
             }
 
-            if (autoTrackEnabled = true) {
+            if (autoTrackEnabled == true) {
 
                 List<FiducialResult> fiducials = result.getFiducialResults();
                 int closestFidId = -1;
