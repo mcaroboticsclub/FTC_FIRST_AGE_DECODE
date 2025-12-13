@@ -1,5 +1,5 @@
 // Import Required Files
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.MCAEaglesPrograms;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -15,7 +15,7 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.limelightvision.LLResultTypes.*;
 
 // Send the code and the operating mode to the robot with descriptions.
-@TeleOp(name = "Full Bot Drive", group = "MCA EAGLES PROGRAMS")
+@TeleOp(name = "Detector Testing", group = "MCA EAGLES PROGRAMS")
 public class DetectTest extends LinearOpMode {
 
     // Define the speedfactor variable to be used to control the max percent of speed.

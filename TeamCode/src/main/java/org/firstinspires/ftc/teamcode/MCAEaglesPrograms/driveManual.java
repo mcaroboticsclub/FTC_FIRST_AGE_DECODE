@@ -56,7 +56,6 @@ public class driveManual extends LinearOpMode {
         verticalPush = hardwareMap.servo.get("Vertical");
         horizontalPush = hardwareMap.servo.get("Horizontal");
         horizontalPush.setPosition(0.4);
-//        verticalPush.setPosition(0.1);
 
         // Set all of the motors to brake when not powered.
         frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -111,28 +110,30 @@ public class driveManual extends LinearOpMode {
             boolean dpadDown = gamepad2.dpad_down;
 
 // Start the sequence only on the rising edge (when it goes false -> true)
-            if (dpadDown && !prevDpadDown && !triggerShoot) {
+            if (dpadDown && !triggerShoot) {
                 triggerShoot = true;
             }
-
-            prevDpadDown = dpadDown;
 
             if (triggerShoot) {
                 // 1) push horizontally
                 horizontalPush.setPosition(0.85);
+                telemetry.update();
                 sleep(500);
 
                 // 2) then push vertically
-                verticalPush.setPosition(0.9);
-                sleep(3000);
+                verticalPush.setPosition(1);
+                sleep(1200);
+                telemetry.update();
+                horizontalPush.setPosition(1);
+                sleep(700);
 
                 // reset
                 verticalPush.setPosition(0.1);
                 horizontalPush.setPosition(0.4);
+                telemetry.update();
 
                 triggerShoot = false;  // IMPORTANT: don't toggle, just turn it off
             }
-
 
             if (gamepad2.left_bumper) {
                 continue; // TODO: Add shortcut to auto shoot here.
