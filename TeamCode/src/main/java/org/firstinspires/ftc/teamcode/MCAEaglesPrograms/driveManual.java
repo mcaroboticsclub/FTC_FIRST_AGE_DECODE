@@ -16,7 +16,7 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.limelightvision.LLResultTypes.*;
 
 // Send the code and the operating mode to the robot with descriptions.
-@TeleOp(name = "Manual Random Buttons Everything No Limelight", group = "MCA EAGLES PROGRAMS")
+@TeleOp(name = "Full Bot Drive", group = "MCA EAGLES PROGRAMS")
 public class driveManual extends LinearOpMode {
 
     // Define the speedfactor variable to be used to control the max percent of speed.
@@ -24,6 +24,9 @@ public class driveManual extends LinearOpMode {
 
     // Autotrack.
     boolean autoTrackEnabled = false;
+    boolean triggerShoot = false;
+    boolean prevDpadDown = false;
+
 
     // Define all of the motors.
     DcMotor frontLeft = null;
@@ -52,6 +55,7 @@ public class driveManual extends LinearOpMode {
 
         verticalPush = hardwareMap.servo.get("Vertical");
         horizontalPush = hardwareMap.servo.get("Horizontal");
+        horizontalPush.setPosition(0.4);
 
         // Set all of the motors to brake when not powered.
         frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -93,24 +97,43 @@ public class driveManual extends LinearOpMode {
             intake.setPower((gamepad1.left_trigger - gamepad1.right_trigger) * speedFactor);
 
             if (gamepad2.x) {
-                spindexer.setPower(0.5 * speedFactor);
+                spindexer.setPower(speedFactor);
             } else if (gamepad2.y) {
-                spindexer.setPower(-0.5 * speedFactor); // TODO: Add set positions to move to.
+                spindexer.setPower(-speedFactor); // TODO: Add set positions to move to.
             } else {
                 spindexer.setPower(0);
             }
 
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
-//            if (gamepad2.dpad_down) {
-//                verticalPush.setPosition(0.35);
-////                horizontalPush.setPosition(0.47); // TODO: Setup horizontal shooter.
-//            }
-//
-//            else if (gamepad2.dpad_up) {
-//                verticalPush.setPosition(0.65);
-////                horizontalPush.setPosition(0.53);
-//            }
+// Pusher on dpad down hotkey (press once to fire sequence)
+            boolean dpadDown = gamepad2.dpad_down;
+
+// Start the sequence only on the rising edge (when it goes false -> true)
+            if (dpadDown && !triggerShoot) {
+                triggerShoot = true;
+            }
+
+            if (triggerShoot) {
+                // 1) push horizontally
+                horizontalPush.setPosition(0.85);
+                telemetry.update();
+                sleep(500);
+
+                // 2) then push vertically
+                verticalPush.setPosition(1);
+                sleep(1200);
+                telemetry.update();
+                horizontalPush.setPosition(1);
+                sleep(700);
+
+                // reset
+                verticalPush.setPosition(0.1);
+                horizontalPush.setPosition(0.4);
+                telemetry.update();
+
+                triggerShoot = false;  // IMPORTANT: don't toggle, just turn it off
+            }
 
             if (gamepad2.left_bumper) {
                 continue; // TODO: Add shortcut to auto shoot here.
@@ -119,13 +142,6 @@ public class driveManual extends LinearOpMode {
             if (gamepad2.right_bumper) {
                 continue; // TODO: Toggle automatic aim or manual shoot.
             }
-
-            if (gamepad1.y) {
-                speedFactor = 0.5;
-            } else if (gamepad1.x) {
-                speedFactor = 1.0;
-            }
-
 
             //Camera
             LLStatus status = limelight.getStatus();
@@ -138,7 +154,7 @@ public class driveManual extends LinearOpMode {
 
             LLResult result = limelight.getLatestResult();
 
-            if (autoTrackEnabled = false) {
+            if (autoTrackEnabled == false) {
                 if (gamepad2.dpad_left) {
                     turret.setPower(-0.5 * speedFactor);
                 } else if (gamepad2.dpad_right) {
@@ -148,7 +164,7 @@ public class driveManual extends LinearOpMode {
                 }
             }
 
-            if (autoTrackEnabled = true) {
+            if (autoTrackEnabled == true) {
 
                 List<FiducialResult> fiducials = result.getFiducialResults();
                 int closestFidId = -1;
@@ -255,4 +271,3 @@ public class driveManual extends LinearOpMode {
             telemetry.update();
         }
     }
-}
