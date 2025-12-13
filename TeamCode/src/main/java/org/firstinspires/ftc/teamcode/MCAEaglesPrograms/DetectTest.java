@@ -58,9 +58,6 @@ public class DetectTest extends LinearOpMode {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // Reset spindexer encoder
-        spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
         //Setup Limelight
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
 

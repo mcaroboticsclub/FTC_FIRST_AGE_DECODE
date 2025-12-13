@@ -69,11 +69,6 @@ public class fullBotDrive extends LinearOpMode {
 
         // Setup turret
         turret.setDirection(DcMotorSimple.Direction.FORWARD); // Change to REVERSE if it aims wrong way
-        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
-        // Reset spindexer encoder
-        spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         //Setup Limelight (optional - for camera viewing only)
         limelight = hardwareMap.get(Limelight3A.class, "limelight");

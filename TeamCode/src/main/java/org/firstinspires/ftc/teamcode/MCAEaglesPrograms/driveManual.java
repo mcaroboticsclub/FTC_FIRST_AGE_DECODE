@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import java.util.*;
 
-// Limelight
+//Limelight
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -24,12 +24,6 @@ public class driveManual extends LinearOpMode {
 
     // Autotrack.
     boolean autoTrackEnabled = false;
-
-    // ===== FIX #2: Turret soft limits (encoder ticks) =====
-    // Use your tested values
-    int turretMinPosition = -200;   // left limit
-    int turretMaxPosition = 900;    // right limit
-    boolean enforceTurretLimits = true;
 
     // Define all of the motors.
     DcMotor frontLeft = null;
@@ -72,14 +66,10 @@ public class driveManual extends LinearOpMode {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // ===== FIX #2: Turret encoder setup ONCE (no resets in loop) =====
-        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
         // Setup Limelight
         Limelight3A limelight = hardwareMap.get(Limelight3A.class, "limelight");
 
-        telemetry.setMsTransmissionInterval(11); // why 11?
+        telemetry.setMsTransmissionInterval(11); //why 11?
 
         limelight.pipelineSwitch(0);
         limelight.start();
@@ -88,6 +78,12 @@ public class driveManual extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
+
+            // TODO: Add power management.
+
+            // TODO: Add odo and auto tracking and movement during teleop.
+
+            // TODO: Add sensors and integrate them into code. - 3x Distance, 1x Pinpoint, 2x Parallel Odo, 1x Perpendicular Odo, 1x Color, 1x IMU, 1x Limelight
 
             frontLeft.setPower((-gamepad1.left_stick_y + gamepad1.left_stick_x + gamepad1.right_stick_x) * speedFactor);
             backLeft.setPower((-gamepad1.left_stick_y - gamepad1.left_stick_x + gamepad1.right_stick_x) * speedFactor);
@@ -106,6 +102,16 @@ public class driveManual extends LinearOpMode {
 
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
+//            if (gamepad2.dpad_down) {
+//                verticalPush.setPosition(0.35);
+////                horizontalPush.setPosition(0.47); // TODO: Setup horizontal shooter.
+//            }
+//
+//            else if (gamepad2.dpad_up) {
+//                verticalPush.setPosition(0.65);
+////                horizontalPush.setPosition(0.53);
+//            }
+
             if (gamepad2.left_bumper) {
                 continue; // TODO: Add shortcut to auto shoot here.
             }
@@ -120,9 +126,11 @@ public class driveManual extends LinearOpMode {
                 speedFactor = 1.0;
             }
 
-            // Camera telemetry
+
+            //Camera
             LLStatus status = limelight.getStatus();
-            telemetry.addData("Name", "%s", status.getName());
+            telemetry.addData("Name", "%s",
+                    status.getName());
             telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
                     status.getTemp(), status.getCpu(), (int) status.getFps());
             telemetry.addData("Pipeline", "Index: %d, Type: %s",
@@ -130,8 +138,7 @@ public class driveManual extends LinearOpMode {
 
             LLResult result = limelight.getLatestResult();
 
-            // ===== MANUAL TURRET MODE =====
-            if (autoTrackEnabled == false) {
+            if (autoTrackEnabled = false) {
                 if (gamepad2.dpad_left) {
                     turret.setPower(-0.5 * speedFactor);
                 } else if (gamepad2.dpad_right) {
@@ -141,93 +148,79 @@ public class driveManual extends LinearOpMode {
                 }
             }
 
-            // ===== AUTO TRACK MODE =====
-            if (autoTrackEnabled == true) {
+            if (autoTrackEnabled = true) {
 
-                // ===== FIX #1: Null/invalid guard to prevent crashes =====
-                if (result == null || !result.isValid()) {
-                    turret.setPower(0);
-                    telemetry.addData("Turret Auto", "No valid Limelight result");
-                } else {
+                List<FiducialResult> fiducials = result.getFiducialResults();
+                int closestFidId = -1;
+                double closestFidDist = 1000000;
+                double xDegrees = -1;
+                for (FiducialResult fiducial : fiducials) {
+                    int id = fiducial.getFiducialId(); // The ID number of the fiducial
+                    double x = fiducial.getTargetXDegrees(); // Where it is (left-right)
+//                    double y = detection.getTargetYDegrees(); // Where it is (up-down)
+                    double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
+                    double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
+                    double distance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
 
-                    List<FiducialResult> fiducials = result.getFiducialResults();
+                    if (closestFidDist > distance) {
+                        closestFidDist = distance;
+                        closestFidId = id;
+                        xDegrees = x;
+                    }
 
-                    if (fiducials == null || fiducials.isEmpty()) {
-                        turret.setPower(0);
-                        telemetry.addData("Turret Auto", "No AprilTags visible");
+                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at " + x + " deg");
+                }
+                telemetry.addData("Closest fiducial ", closestFidId + " is " + closestFidDist + "m away at " + xDegrees + " deg");
+
+//                turret_max = 900
+//                turret_min = -200
+
+
+                //rotate to orientation based on xDegrees
+                if (closestFidId != -1 && closestFidDist < 1000000) { // Only rotate if we found a fiducial
+                    double kP = 0.012; // Lower proportional gain for gentler response
+                    double minPower = 0.1; // Lower minimum power for smoother start
+                    double maxPower = 0.5; // Conservative max power limit
+                    double deadband = 0.5; // Tighter deadband for precision
+
+                    if (Math.abs(xDegrees) > deadband) { // TODO: Calc to theta encoder and lock on.
+                        // Calculate turret rotation power (negative to rotate toward target)
+                        double turretPower = -xDegrees * kP;
+                        telemetry.addData("Power is ", turretPower + " position is ", xDegrees);
+                        // Apply minimum power threshold
+                        if (Math.abs(turretPower) < minPower) {
+                            turretPower = Math.signum(turretPower) * minPower;
+                        }
+
+                        // Clamp to conservative max power
+                        turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
+
+                        if (turret.getCurrentPosition() > 50) {
+                            turret.setTargetPosition(1200);
+                            turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                            turret.setPower(0.1);
+                        }
+
+                        else if (turret.getCurrentPosition() < 0) {
+                            turret.setTargetPosition(0);
+                            turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                            turret.setPower(0.1);
+                        }
+                        else {
+                            turret.setPower(turretPower);
+                        }
+
+                        // Apply power to turret
+                        turret.setPower(turretPower * speedFactor);
+
+                        telemetry.addData("Turret auto-aiming", "Error: %.2f°, Power: %.2f", xDegrees, turretPower);
                     } else {
-
-                        int closestFidId = -1;
-                        double closestFidDist = 1000000;
-                        double xDegrees = 0;
-
-                        for (FiducialResult fiducial : fiducials) {
-                            int id = fiducial.getFiducialId(); // The ID number of the fiducial
-                            double x = fiducial.getTargetXDegrees(); // Where it is (left-right)
-
-                            double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
-                            double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
-                            double distance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
-
-                            if (closestFidDist > distance) {
-                                closestFidDist = distance;
-                                closestFidId = id;
-                                xDegrees = x;
-                            }
-
-                            telemetry.addData("Fiducial " + id, "is " + distance + " meters away at " + x + " deg");
-                        }
-
-                        telemetry.addData("Closest fiducial ", closestFidId + " is " + closestFidDist + "m away at " + xDegrees + " deg");
-
-                        // rotate to orientation based on xDegrees
-                        if (closestFidId != -1) { // Only rotate if we found a fiducial
-                            double kP = 0.012; // Lower proportional gain for gentler response
-                            double minPower = 0.1; // Lower minimum power for smoother start
-                            double maxPower = 0.5; // Conservative max power limit
-                            double deadband = 0.5; // Tighter deadband for precision
-
-                            double turretPower = 0;
-
-                            if (Math.abs(xDegrees) > deadband) {
-                                // Calculate turret rotation power (negative to rotate toward target)
-                                turretPower = -xDegrees * kP;
-
-                                // Apply minimum power threshold
-                                if (Math.abs(turretPower) < minPower) {
-                                    turretPower = Math.signum(turretPower) * minPower;
-                                }
-
-                                // Clamp to conservative max power
-                                turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
-
-                                // ===== FIX #2: Enforce limits safely (NO encoder resets) =====
-                                if (enforceTurretLimits) {
-                                    int currentPos = turret.getCurrentPosition();
-                                    if (currentPos <= turretMinPosition && turretPower < 0) {
-                                        turretPower = 0;
-                                        telemetry.addData("LIMIT", "At LEFT limit!");
-                                    } else if (currentPos >= turretMaxPosition && turretPower > 0) {
-                                        turretPower = 0;
-                                        telemetry.addData("LIMIT", "At RIGHT limit!");
-                                    }
-                                }
-
-                                telemetry.addData("Turret auto-aiming", "Error: %.2f°, Power: %.2f", xDegrees, turretPower);
-                            } else {
-                                telemetry.addData("Turret", "Locked on target!");
-                            }
-
-                            // ===== FIX #3: Set turret power ONCE (no overwriting) =====
-                            turret.setPower(turretPower * speedFactor);
-                        } else {
-                            turret.setPower(0);
-                        }
+                        turret.setPower(0);
+                        telemetry.addData("Turret", "Locked on target!");
                     }
                 }
             }
 
-            // Toggle auto-track on D-Pad Up
             if (gamepad2.dpad_up) {
                 autoTrackEnabled = !autoTrackEnabled;
                 sleep(200);
@@ -258,6 +251,7 @@ public class driveManual extends LinearOpMode {
             telemetry.addData("Speed Factor:", speedFactor);
             telemetry.addData("Automatic Tracking Enabled:", autoTrackEnabled);
 
+            // Update the telemetry.
             telemetry.update();
         }
     }
