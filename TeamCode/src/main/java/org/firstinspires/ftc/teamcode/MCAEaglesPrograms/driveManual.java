@@ -84,10 +84,15 @@ public class driveManual extends LinearOpMode {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // Spindexer encoder setup
+        // ----------------------------
+        // Spindexer encoder setup (Fix B)
+        // MUST set target BEFORE RUN_TO_POSITION or you'll get TargetPositionNotSetException.
+        // ----------------------------
         spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        spindexer.setPower(0);
+        spindexer.setTargetPosition(SPIN_SLOT_0);              // <-- FIX: set target first
+        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);    // now it's safe
+        spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        spindexer.setPower(0);                                 // don't move until start
 
         // Turret encoder setup
         // IMPORTANT: This makes "0 = forward" ONLY if the turret is physically pointing forward right now.
@@ -103,6 +108,7 @@ public class driveManual extends LinearOpMode {
 
         waitForStart();
 
+        // Start at slot 0 (this will apply power and ensure it goes where you want)
         goToSpindexerSlot(0);
 
         while (opModeIsActive()) {
@@ -186,7 +192,6 @@ public class driveManual extends LinearOpMode {
             } else {
                 // Auto-aim (open-loop power) with encoder limits
                 LLResult result = limelight.getLatestResult();
-
                 double turretPower = 0;
 
                 if (result != null) {
@@ -227,15 +232,11 @@ public class driveManual extends LinearOpMode {
                         if (Math.abs(xDegrees) > deadband) {
                             turretPower = -xDegrees * kP;
 
-                            // minimum power
                             if (Math.abs(turretPower) < minPower) {
                                 turretPower = Math.signum(turretPower) * minPower;
                             }
 
-                            // clamp max power
                             turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
-
-                            // apply speed factor
                             turretPower *= speedFactor;
                         } else {
                             turretPower = 0;
