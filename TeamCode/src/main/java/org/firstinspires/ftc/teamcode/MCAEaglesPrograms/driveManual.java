@@ -15,17 +15,23 @@ import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.limelightvision.LLResultTypes.*;
 
-// Send the code and the operating mode to the robot with descriptions.
 @TeleOp(name = "Full Bot Drive", group = "MCA EAGLES PROGRAMS")
 public class driveManual extends LinearOpMode {
 
-    // Define the speedfactor variable to be used to control the max percent of speed.
+    // Drive
     double speedFactor = 1.0;
 
-    // Autotrack.
+    // Turret limits (ticks). 0 = turret facing forward (ONLY true if you reset encoder while forward).
+    static final int TURRET_MIN_TICKS = -385;
+    static final int TURRET_MAX_TICKS =  632;
+
+    // Autotrack + shooter
     boolean autoTrackEnabled = false;
     boolean triggerShoot = false;
     boolean prevDpadDown = false;
+    boolean prevDpadUp = false;
+
+    // Spindexer slots
     static final int SPIN_SLOT_0 = 0;
     static final int SPIN_SLOT_1 = 510;
     static final int SPIN_SLOT_2 = 955;
@@ -33,8 +39,7 @@ public class driveManual extends LinearOpMode {
     int currentSpindexerSlot = 0;
     boolean spindexerButtonLast = false;
 
-
-    // Define all of the motors.
+    // Motors / servos
     DcMotor frontLeft = null;
     DcMotor frontRight = null;
     DcMotor backLeft = null;
@@ -49,24 +54,24 @@ public class driveManual extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-        // Hardware map all of the motors.
-        frontLeft = hardwareMap.dcMotor.get("Front_Left");
+        // Hardware map
+        frontLeft  = hardwareMap.dcMotor.get("Front_Left");
         frontRight = hardwareMap.dcMotor.get("Front_Right");
-        backLeft = hardwareMap.dcMotor.get("Back_Left");
-        backRight = hardwareMap.dcMotor.get("Back_Right");
-        intake = hardwareMap.dcMotor.get("Intake");
-        flywheel = hardwareMap.dcMotor.get("Flywheel");
-        spindexer = hardwareMap.dcMotor.get("Spindexer");
-        spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        turret = hardwareMap.dcMotor.get("Turret");
+        backLeft   = hardwareMap.dcMotor.get("Back_Left");
+        backRight  = hardwareMap.dcMotor.get("Back_Right");
+        intake     = hardwareMap.dcMotor.get("Intake");
+        flywheel   = hardwareMap.dcMotor.get("Flywheel");
+        spindexer  = hardwareMap.dcMotor.get("Spindexer");
+        turret     = hardwareMap.dcMotor.get("Turret");
 
-        verticalPush = hardwareMap.servo.get("Vertical");
+        verticalPush   = hardwareMap.servo.get("Vertical");
         horizontalPush = hardwareMap.servo.get("Horizontal");
-        horizontalPush.setPosition(0.4);
 
-        // Set all of the motors to brake when not powered.
+        // Initial servo positions (your "rest" positions)
+        horizontalPush.setPosition(0.4);
+        verticalPush.setPosition(0.1);
+
+        // Brake
         frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -75,226 +80,211 @@ public class driveManual extends LinearOpMode {
         spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Reverse the direction of one side of the robot's motors.
+        // Reverse one side
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // Setup Limelight
+        // Spindexer encoder setup
+        spindexer.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        spindexer.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        spindexer.setPower(0);
+
+        // Turret encoder setup
+        // IMPORTANT: This makes "0 = forward" ONLY if the turret is physically pointing forward right now.
+        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turret.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        turret.setPower(0);
+
+        // Limelight
         Limelight3A limelight = hardwareMap.get(Limelight3A.class, "limelight");
-
-        telemetry.setMsTransmissionInterval(11); //why 11?
-
+        telemetry.setMsTransmissionInterval(11);
         limelight.pipelineSwitch(0);
         limelight.start();
 
-        // Wait for the start button to be pushed before starting the run loop.
         waitForStart();
+
         goToSpindexerSlot(0);
 
         while (opModeIsActive()) {
 
-            // TODO: Add power management.
-
-            // TODO: Add odo and auto tracking and movement during teleop.
-
-            // TODO: Add sensors and integrate them into code. - 3x Distance, 1x Pinpoint, 2x Parallel Odo, 1x Perpendicular Odo, 1x Color, 1x IMU, 1x Limelight
-
+            // Drive
             frontLeft.setPower((-gamepad1.left_stick_y + gamepad1.left_stick_x + gamepad1.right_stick_x) * speedFactor);
             backLeft.setPower((-gamepad1.left_stick_y - gamepad1.left_stick_x + gamepad1.right_stick_x) * speedFactor);
             frontRight.setPower((-gamepad1.left_stick_y - gamepad1.left_stick_x - gamepad1.right_stick_x) * speedFactor);
             backRight.setPower((-gamepad1.left_stick_y + gamepad1.left_stick_x - gamepad1.right_stick_x) * speedFactor);
 
+            // Intake
             intake.setPower((gamepad1.left_trigger - gamepad1.right_trigger) * speedFactor);
 
+            // Spindexer: press X to advance slot (rising-edge)
             boolean spindexerButtonNow = gamepad2.x;
-
-// rising-edge detection
             if (spindexerButtonNow && !spindexerButtonLast) {
                 int nextSlot = (currentSpindexerSlot + 1) % TOTAL_SPIN_SLOTS;
                 goToSpindexerSlot(nextSlot);
             }
-
-// save button state
             spindexerButtonLast = spindexerButtonNow;
 
-            // stopping power once it reaches a certian position
+            // Optional: stop power once it reaches target (won't actively hold)
             if (!spindexer.isBusy()) {
                 spindexer.setPower(0);
             }
 
+            // Flywheel
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
-// Pusher on dpad down hotkey (press once to fire sequence)
-            boolean dpadDown = gamepad2.dpad_down;
+            // Toggle autotrack (dpad_up rising-edge)
+            boolean dpadUp = gamepad2.dpad_up;
+            if (dpadUp && !prevDpadUp) {
+                autoTrackEnabled = !autoTrackEnabled;
+            }
+            prevDpadUp = dpadUp;
 
-// Start the sequence only on the rising edge (when it goes false -> true)
-            if (dpadDown && !triggerShoot) {
+            // Shooter: dpad_down (press once) runs the full sequence once
+            boolean dpadDown = gamepad2.dpad_down;
+            if (dpadDown && !prevDpadDown && !triggerShoot) {
                 triggerShoot = true;
             }
+            prevDpadDown = dpadDown;
 
             if (triggerShoot) {
                 // 1) push horizontally
                 horizontalPush.setPosition(0.85);
-                telemetry.update();
                 sleep(500);
 
                 // 2) then push vertically
-                verticalPush.setPosition(1);
+                verticalPush.setPosition(1.0);
                 sleep(1200);
-                telemetry.update();
-                horizontalPush.setPosition(1);
+
+                // extra horizontal push (your choice)
+                horizontalPush.setPosition(1.0);
                 sleep(700);
 
                 // reset
                 verticalPush.setPosition(0.1);
                 horizontalPush.setPosition(0.4);
-                telemetry.update();
 
-                triggerShoot = false;  // IMPORTANT: don't toggle, just turn it off
+                triggerShoot = false;
             }
 
-            if (gamepad2.left_bumper) {
-                continue; // TODO: Add shortcut to auto shoot here.
+            // Turret control
+            int turretPos = turret.getCurrentPosition();
+
+            if (!autoTrackEnabled) {
+                // Manual turret (dpad_left/right) with encoder limits
+                double turretCmd = 0;
+                if (gamepad2.dpad_left)  turretCmd = -0.5 * speedFactor;
+                else if (gamepad2.dpad_right) turretCmd =  0.5 * speedFactor;
+
+                // Block motion into the limits
+                if ((turretCmd > 0 && turretPos >= TURRET_MAX_TICKS) ||
+                    (turretCmd < 0 && turretPos <= TURRET_MIN_TICKS)) {
+                    turretCmd = 0;
+                }
+
+                turret.setPower(turretCmd);
+
+            } else {
+                // Auto-aim (open-loop power) with encoder limits
+                LLResult result = limelight.getLatestResult();
+
+                double turretPower = 0;
+
+                if (result != null) {
+                    List<FiducialResult> fiducials = result.getFiducialResults();
+
+                    int closestFidId = -1;
+                    double closestFidDist = 1e9;
+                    double xDegrees = 0;
+
+                    if (fiducials != null) {
+                        for (FiducialResult fiducial : fiducials) {
+                            int id = fiducial.getFiducialId();
+                            double x = fiducial.getTargetXDegrees();
+
+                            double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
+                            double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
+                            double distance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
+
+                            if (distance < closestFidDist) {
+                                closestFidDist = distance;
+                                closestFidId = id;
+                                xDegrees = x;
+                            }
+
+                            telemetry.addData("Fiducial " + id, distance + "m @ " + x + " deg");
+                        }
+                    }
+
+                    telemetry.addData("Closest fiducial", closestFidId + " @ " + closestFidDist + "m, x=" + xDegrees);
+
+                    // Convert xDegrees error -> turret power
+                    if (closestFidId != -1) {
+                        double kP = 0.012;
+                        double minPower = 0.1;
+                        double maxPower = 0.5;
+                        double deadband = 0.5;
+
+                        if (Math.abs(xDegrees) > deadband) {
+                            turretPower = -xDegrees * kP;
+
+                            // minimum power
+                            if (Math.abs(turretPower) < minPower) {
+                                turretPower = Math.signum(turretPower) * minPower;
+                            }
+
+                            // clamp max power
+                            turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
+
+                            // apply speed factor
+                            turretPower *= speedFactor;
+                        } else {
+                            turretPower = 0;
+                        }
+                    }
+                }
+
+                // Enforce encoder limits (block motion into stops)
+                turretPos = turret.getCurrentPosition();
+                if ((turretPower > 0 && turretPos >= TURRET_MAX_TICKS) ||
+                    (turretPower < 0 && turretPos <= TURRET_MIN_TICKS)) {
+                    turretPower = 0;
+                }
+
+                turret.setPower(turretPower);
             }
 
-            if (gamepad2.right_bumper) {
-                continue; // TODO: Toggle automatic aim or manual shoot.
-            }
-
-            //Camera
+            // Limelight telemetry
             LLStatus status = limelight.getStatus();
-            telemetry.addData("Name", "%s",
-                    status.getName());
+            telemetry.addData("LL Name", status.getName());
             telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
                     status.getTemp(), status.getCpu(), (int) status.getFps());
             telemetry.addData("Pipeline", "Index: %d, Type: %s",
                     status.getPipelineIndex(), status.getPipelineType());
 
-            LLResult result = limelight.getLatestResult();
+            // Telemetry
+            telemetry.addData("Turret Now", turret.getCurrentPosition());
+            telemetry.addData("Turret Limits", "[" + TURRET_MIN_TICKS + ", " + TURRET_MAX_TICKS + "]");
+            telemetry.addData("AutoTrack", autoTrackEnabled);
 
-            if (autoTrackEnabled == false) {
-                if (gamepad2.dpad_left) {
-                    turret.setPower(-0.5 * speedFactor);
-                } else if (gamepad2.dpad_right) {
-                    turret.setPower(0.5 * speedFactor);
-                } else {
-                    turret.setPower(0);
-                }
-            }
+            telemetry.addData("Spindexer Slot", currentSpindexerSlot);
+            telemetry.addData("Spindexer Now", spindexer.getCurrentPosition());
+            telemetry.addData("Spindexer Target", spindexer.getTargetPosition());
+            telemetry.addData("Spindexer Busy", spindexer.isBusy());
 
-            if (autoTrackEnabled == true) {
+            telemetry.addData("Vertical Servo", verticalPush.getPosition());
+            telemetry.addData("Horizontal Servo", horizontalPush.getPosition());
 
-                List<FiducialResult> fiducials = result.getFiducialResults();
-                int closestFidId = -1;
-                double closestFidDist = 1000000;
-                double xDegrees = -1;
-                for (FiducialResult fiducial : fiducials) {
-                    int id = fiducial.getFiducialId(); // The ID number of the fiducial
-                    double x = fiducial.getTargetXDegrees(); // Where it is (left-right)
-//                    double y = detection.getTargetYDegrees(); // Where it is (up-down)
-                    double strafe_3d = fiducial.getRobotPoseTargetSpace().getPosition().y;
-                    double straight_3d = fiducial.getRobotPoseTargetSpace().getPosition().x;
-                    double distance = Math.sqrt(strafe_3d * strafe_3d + straight_3d * straight_3d);
+            telemetry.addData("Speed Factor", speedFactor);
 
-                    if (closestFidDist > distance) {
-                        closestFidDist = distance;
-                        closestFidId = id;
-                        xDegrees = x;
-                    }
-
-                    telemetry.addData("Fiducial " + id, "is " + distance + " meters away at " + x + " deg");
-                }
-                telemetry.addData("Closest fiducial ", closestFidId + " is " + closestFidDist + "m away at " + xDegrees + " deg");
-
-//                turret_max = 900
-//                turret_min = -200
-
-
-                //rotate to orientation based on xDegrees
-                if (closestFidId != -1 && closestFidDist < 1000000) { // Only rotate if we found a fiducial
-                    double kP = 0.012; // Lower proportional gain for gentler response
-                    double minPower = 0.1; // Lower minimum power for smoother start
-                    double maxPower = 0.5; // Conservative max power limit
-                    double deadband = 0.5; // Tighter deadband for precision
-
-                    if (Math.abs(xDegrees) > deadband) { // TODO: Calc to theta encoder and lock on.
-                        // Calculate turret rotation power (negative to rotate toward target)
-                        double turretPower = -xDegrees * kP;
-                        telemetry.addData("Power is ", turretPower + " position is ", xDegrees);
-                        // Apply minimum power threshold
-                        if (Math.abs(turretPower) < minPower) {
-                            turretPower = Math.signum(turretPower) * minPower;
-                        }
-
-                        // Clamp to conservative max power
-                        turretPower = Math.max(-maxPower, Math.min(maxPower, turretPower));
-
-                        if (turret.getCurrentPosition() > 50) {
-                            turret.setTargetPosition(1200);
-                            turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                            turret.setPower(0.1);
-                        }
-
-                        else if (turret.getCurrentPosition() < 0) {
-                            turret.setTargetPosition(0);
-                            turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                            turret.setPower(0.1);
-                        }
-                        else {
-                            turret.setPower(turretPower);
-                        }
-
-                        // Apply power to turret
-                        turret.setPower(turretPower * speedFactor);
-
-                        telemetry.addData("Turret auto-aiming", "Error: %.2f°, Power: %.2f", xDegrees, turretPower);
-                    } else {
-                        turret.setPower(0);
-                        telemetry.addData("Turret", "Locked on target!");
-                    }
-                }
-            }
-
-            if (gamepad2.dpad_up) {
-                autoTrackEnabled = !autoTrackEnabled;
-                sleep(200);
-            }
-
-            telemetry.addData("Front Left Motor Power:", frontLeft.getPower());
-            telemetry.addData("Front Left Motor Position:", frontLeft.getCurrentPosition());
-            telemetry.addData("Front Right Motor Power:", frontRight.getPower());
-            telemetry.addData("Front Right Motor Position:", frontRight.getCurrentPosition());
-            telemetry.addData("Back Left Motor Power:", backLeft.getPower());
-            telemetry.addData("Back Left Motor Position:", backLeft.getCurrentPosition());
-            telemetry.addData("Back Right Motor Power:", backRight.getPower());
-            telemetry.addData("Back Right Motor Position:", backRight.getCurrentPosition());
-            telemetry.addData("Intake Motor Power:", intake.getPower());
-            telemetry.addData("Intake Motor Position Now:", intake.getCurrentPosition());
-            telemetry.addData("Intake Motor Position Target:", intake.getTargetPosition());
-            telemetry.addData("Spindexer Motor Power:", spindexer.getPower());
-            telemetry.addData("Spindexer Motor Position Now:", spindexer.getCurrentPosition());
-            telemetry.addData("Spindexer Motor Position Target:", spindexer.getTargetPosition());
-            telemetry.addData("Turret Motor Power:", turret.getPower());
-            telemetry.addData("Turret Motor Position Now:", turret.getCurrentPosition());
-            telemetry.addData("Turret Motor Position Target:", turret.getCurrentPosition());
-            telemetry.addData("Flywheel Motor Power:", flywheel.getPower());
-            telemetry.addData("Flywheel Motor Position Now:", flywheel.getCurrentPosition());
-            telemetry.addData("Flywheel Motor Position Target:", flywheel.getTargetPosition());
-            telemetry.addData("Vertical Pusher Position:", verticalPush.getPosition());
-            telemetry.addData("Horizontal Pusher Position:", horizontalPush.getPosition());
-            telemetry.addData("Speed Factor:", speedFactor);
-            telemetry.addData("Automatic Tracking Enabled:", autoTrackEnabled);
-
-            // Update the telemetry.
             telemetry.update();
         }
     }
-    // spindexer slot function
+
+    // Spindexer slot function
     void goToSpindexerSlot(int slot) {
-
         currentSpindexerSlot = slot;
-        int target;
 
+        int target;
         switch (slot) {
             case 0: target = SPIN_SLOT_0; break;
             case 1: target = SPIN_SLOT_1; break;
@@ -307,4 +297,3 @@ public class driveManual extends LinearOpMode {
         spindexer.setPower(0.5);
     }
 }
-
