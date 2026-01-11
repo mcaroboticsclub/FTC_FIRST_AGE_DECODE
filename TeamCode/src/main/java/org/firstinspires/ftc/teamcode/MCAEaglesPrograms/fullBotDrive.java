@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.MCAEaglesPrograms;
 
-import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -24,7 +23,6 @@ public class fullBotDrive extends LinearOpMode {
     DcMotor flywheel = null;
     Servo pusher = null;
     Servo blocker = null;
-    Limelight3A limelight = null;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -41,8 +39,6 @@ public class fullBotDrive extends LinearOpMode {
 
         pusher = hardwareMap.servo.get("Pusher");
         blocker = hardwareMap.servo.get("Blocker");
-
-        limelight = hardwareMap.get(Limelight3A.class, "Ethernet Device"); // TEST
 
         // Set all of the motors to brake when not powered.
         frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -74,7 +70,7 @@ public class fullBotDrive extends LinearOpMode {
             turret.setPower(-gamepad2.right_stick_x * 0.3);
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
 
-            if (gamepad2.rightBumperWasReleased()) { // SERVO POSITIONS NOT CORRECT
+            if (gamepad2.rightBumperWasReleased()) {
                 blocker.setPosition(0.29);
             } else if (gamepad2.leftBumperWasReleased()) {
                 blocker.setPosition(0.39);
