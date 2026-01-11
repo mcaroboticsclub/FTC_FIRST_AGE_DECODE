@@ -11,7 +11,7 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import java.util.List;
 
 @TeleOp(name = "Full Bot Drive with Limelight", group = "MCA EAGLES Programs")
-public class fullBotDrive extends LinearOpMode {
+public class fullBotDriveLimelight extends LinearOpMode {
     double speedFactor = 1.0;
     
     DcMotor frontLeft = null;
@@ -24,8 +24,7 @@ public class fullBotDrive extends LinearOpMode {
     DcMotor flywheel = null;
     Servo pusher = null;
     Servo blocker = null;
-    
-    private Limelight3A limelight;
+    Limelight3A limelight = null;
     
     private boolean autoTrackingEnabled = false;
     private double turretKp = 0.02;
@@ -44,8 +43,10 @@ public class fullBotDrive extends LinearOpMode {
         pusher = hardwareMap.servo.get("Pusher");
         blocker = hardwareMap.servo.get("Blocker");
         
-        limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.setIpAddress("172.29.0.24");
+//        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+//        limelight.setIpAddress("172.29.0.24");
+
+        limelight = hardwareMap.get(Limelight3A.class, "Ethernet Device"); // TEST
         
         frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -98,7 +99,7 @@ public class fullBotDrive extends LinearOpMode {
             
             flywheel.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
             
-            if (gamepad2.right_bumper) {
+            if (gamepad2.right_bumper) { // SERVO POSITIONS WRONG
                 blocker.setPosition(0.29);
             } else if (gamepad2.left_bumper) {
                 blocker.setPosition(0.39);
